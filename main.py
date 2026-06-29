@@ -15,6 +15,11 @@ BOT_NAME = os.environ.get("BOT_NAME", "TransLinguabot")
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "TransLinguabot")
 
 if not TOKEN:
+    print("=" * 60)
+    print("❌ ERROR: TELEGRAM_TOKEN environment variable not set!")
+    print("📝 Please add it in Railway Dashboard:")
+    print("   Variables → Add Variable → TELEGRAM_TOKEN = your_token")
+    print("=" * 60)
     raise ValueError("❌ TELEGRAM_TOKEN environment variable not set!")
 
 # Enable logging
@@ -52,7 +57,6 @@ def get_language_keyboard():
     buttons = []
     row = []
     for i, (name, code) in enumerate(SUPPORTED_LANGUAGES.items()):
-        # Display name with proper capitalization
         display_name = name.capitalize()
         row.append(InlineKeyboardButton(display_name, callback_data=f"lang_{code}"))
         if len(row) == 3:
@@ -94,9 +98,8 @@ def get_lang_name(lang_code: str) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send welcome message when /start is issued"""
-    # Set default language if not set
     if "target_lang" not in context.user_data:
-        context.user_data["target_lang"] = "es"  # Default to Spanish
+        context.user_data["target_lang"] = "es"
     
     current_lang_name = get_lang_name(context.user_data["target_lang"])
     
@@ -166,26 +169,17 @@ async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming text messages and translate them"""
     try:
-        # Get user's target language
         target_lang = context.user_data.get("target_lang", "es")
-        
-        # Get the text to translate
         text = update.message.text
         
-        # Skip commands
         if text.startswith('/'):
             return
         
-        # Send typing indicator
         await update.message.chat.send_action(action="typing")
         
-        # Translate the text
         translated = translate_text(text, target_lang)
-        
-        # Get language name for display
         lang_name = get_lang_name(target_lang)
         
-        # Send translation
         await update.message.reply_text(
             f"🌍 **Translation ({lang_name.capitalize()}):**\n\n{translated}",
             parse_mode="Markdown"
@@ -257,7 +251,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await query.edit_message_text("❌ Invalid language selected.")
             return
         
-        # Save the language preference
         context.user_data["target_lang"] = lang_code
         
         await query.edit_message_text(
@@ -282,49 +275,38 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def main() -> None:
     """Start the bot with proper webhook handling"""
     try:
-        # Create application
         application = Application.builder().token(TOKEN).build()
 
-        # Add command handlers
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("lang", lang_command))
         application.add_handler(CommandHandler("info", info_command))
 
-        # Add message handler for text
         application.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             handle_message
         ))
 
-        # Add callback query handler for buttons
         application.add_handler(CallbackQueryHandler(button_callback))
-
-        # Add error handler
         application.add_error_handler(error_handler)
 
-        # Clear webhook before starting
         logger.info("🔄 Clearing any existing webhook...")
         await application.bot.delete_webhook(drop_pending_updates=True)
         logger.info("✅ Webhook cleared successfully!")
 
-        # Start the bot
         logger.info(f"🚀 Starting {BOT_NAME} (@{BOT_USERNAME})...")
         logger.info(f"✅ Bot is running on Python {os.sys.version}")
 
-        # Start polling with proper settings
         await application.initialize()
         await application.start()
         await application.updater.start_polling()
 
-        # Keep the bot running
         while True:
             await asyncio.sleep(1)
 
     except Conflict as e:
         logger.error(f"❌ Conflict error: {e}")
         logger.error("⚠️ Another instance of this bot is already running!")
-        logger.error("💡 Make sure you don't have multiple deployments with the same token.")
         raise
     except Exception as e:
         logger.error(f"❌ Failed to start bot: {e}")
