@@ -7,7 +7,7 @@ from telegram.error import Conflict
 from deep_translator import GoogleTranslator
 
 # ============================================
-# CONFIGURATION
+# CONFIGURATION (Using Environment Variables)
 # ============================================
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -33,7 +33,7 @@ SUPPORTED_LANGUAGES = {
     "italian": "it",
     "portuguese": "pt",
     "russian": "ru",
-    "chinese": "zh-CN",
+    "chinese (simplified)": "zh-CN",
     "japanese": "ja",
     "korean": "ko",
     "arabic": "ar",
@@ -52,7 +52,9 @@ def get_language_keyboard():
     buttons = []
     row = []
     for i, (name, code) in enumerate(SUPPORTED_LANGUAGES.items()):
-        row.append(InlineKeyboardButton(name.capitalize(), callback_data=f"lang_{code}"))
+        # Display name with proper capitalization
+        display_name = name.capitalize()
+        row.append(InlineKeyboardButton(display_name, callback_data=f"lang_{code}"))
         if len(row) == 3:
             buttons.append(row)
             row = []
@@ -79,6 +81,13 @@ def translate_text(text: str, target_lang: str) -> str:
         logger.error(f"Translation error: {e}")
         raise e
 
+def get_lang_name(lang_code: str) -> str:
+    """Get language name from code"""
+    for name, code in SUPPORTED_LANGUAGES.items():
+        if code == lang_code:
+            return name
+    return "unknown"
+
 # ============================================
 # BOT COMMAND HANDLERS
 # ============================================
@@ -89,6 +98,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if "target_lang" not in context.user_data:
         context.user_data["target_lang"] = "es"  # Default to Spanish
     
+    current_lang_name = get_lang_name(context.user_data["target_lang"])
+    
     welcome_text = (
         f"🌍 Welcome to {BOT_NAME}!\n\n"
         "I can translate your messages to different languages.\n\n"
@@ -98,7 +109,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "3. Use the menu to change languages\n\n"
         "📁 **Supported languages:**\n"
         f"{', '.join(SUPPORTED_LANGUAGES.keys()).capitalize()}\n\n"
-        f"🔹 **Current target language:** {get_lang_name(context.user_data['target_lang']).capitalize()}\n\n"
+        f"🔹 **Current target language:** {current_lang_name.capitalize()}\n\n"
         "🔽 **Use the menu below to get started!**"
     )
     await update.message.reply_text(
@@ -106,7 +117,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode="Markdown",
         reply_markup=get_main_menu()
     )
-
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send help message"""
@@ -125,37 +135,29 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
-
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show language selection menu"""
     current_lang = context.user_data.get("target_lang", "es")
+    current_name = get_lang_name(current_lang)
     await update.message.reply_text(
-        f"🌍 **Current target language:** {get_lang_name(current_lang).capitalize()}\n\n"
+        f"🌍 **Current target language:** {current_name.capitalize()}\n\n"
         "Choose a new target language:",
         parse_mode="Markdown",
         reply_markup=get_language_keyboard()
     )
 
-
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show current settings"""
     current_lang = context.user_data.get("target_lang", "es")
+    current_name = get_lang_name(current_lang)
     info_text = (
         f"📊 **Your Settings**\n\n"
-        f"🌍 **Target Language:** {get_lang_name(current_lang).capitalize()}\n"
+        f"🌍 **Target Language:** {current_name.capitalize()}\n"
         f"📝 **Bot Name:** {BOT_NAME}\n"
         f"👤 **Username:** @{BOT_USERNAME}\n\n"
         "Send any text to translate it!"
     )
     await update.message.reply_text(info_text, parse_mode="Markdown")
-
-
-def get_lang_name(lang_code: str) -> str:
-    """Get language name from code"""
-    for name, code in SUPPORTED_LANGUAGES.items():
-        if code == lang_code:
-            return name
-    return "unknown"
 
 # ============================================
 # MESSAGE HANDLER
@@ -212,8 +214,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     if data == "change_lang":
         current_lang = context.user_data.get("target_lang", "es")
+        current_name = get_lang_name(current_lang)
         await query.edit_message_text(
-            f"🌍 **Current target language:** {get_lang_name(current_lang).capitalize()}\n\n"
+            f"🌍 **Current target language:** {current_name.capitalize()}\n\n"
             "Choose a new target language:",
             parse_mode="Markdown",
             reply_markup=get_language_keyboard()
@@ -222,8 +225,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     if data == "current_lang":
         current_lang = context.user_data.get("target_lang", "es")
+        current_name = get_lang_name(current_lang)
         await query.edit_message_text(
-            f"🌍 **Your current target language is:** {get_lang_name(current_lang).capitalize()}\n\n"
+            f"🌍 **Your current target language is:** {current_name.capitalize()}\n\n"
             "Use the button below to change it:",
             parse_mode="Markdown",
             reply_markup=get_main_menu()
