@@ -6,13 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from telegram.error import Conflict
 from deep_translator import GoogleTranslator
 
-# ============================================
-# CONFIGURATION (Using Environment Variables)
-# ============================================
-
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-BOT_NAME = os.environ.get("BOT_NAME", "TransLinguabot")
-BOT_USERNAME = os.environ.get("BOT_USERNAME", "TransLinguabot")
 
 if not TOKEN:
     print("=" * 60)
@@ -20,16 +14,14 @@ if not TOKEN:
     print("📝 Please add it in Railway Dashboard:")
     print("   Variables → Add Variable → TELEGRAM_TOKEN = your_token")
     print("=" * 60)
-    raise ValueError("❌ TELEGRAM_TOKEN environment variable not set!")
+    raise ValueError("TELEGRAM_TOKEN environment variable not set!")
 
-# Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Supported languages
 SUPPORTED_LANGUAGES = {
     "english": "en",
     "spanish": "es",
@@ -38,7 +30,7 @@ SUPPORTED_LANGUAGES = {
     "italian": "it",
     "portuguese": "pt",
     "russian": "ru",
-    "chinese (simplified)": "zh-CN",
+    "chinese": "zh-CN",
     "japanese": "ja",
     "korean": "ko",
     "arabic": "ar",
@@ -48,12 +40,7 @@ SUPPORTED_LANGUAGES = {
     "turkish": "tr"
 }
 
-# ============================================
-# HELPER FUNCTIONS
-# ============================================
-
 def get_language_keyboard():
-    """Generate inline keyboard with language options"""
     buttons = []
     row = []
     for i, (name, code) in enumerate(SUPPORTED_LANGUAGES.items()):
@@ -68,7 +55,6 @@ def get_language_keyboard():
     return InlineKeyboardMarkup(buttons)
 
 def get_main_menu():
-    """Generate main menu keyboard"""
     keyboard = [
         [InlineKeyboardButton("🌍 Change Language", callback_data="change_lang")],
         [InlineKeyboardButton("📖 Current Language", callback_data="current_lang")],
@@ -77,7 +63,6 @@ def get_main_menu():
     return InlineKeyboardMarkup(keyboard)
 
 def translate_text(text: str, target_lang: str) -> str:
-    """Translate text to target language"""
     try:
         translator = GoogleTranslator(target=target_lang)
         return translator.translate(text)
@@ -86,32 +71,24 @@ def translate_text(text: str, target_lang: str) -> str:
         raise e
 
 def get_lang_name(lang_code: str) -> str:
-    """Get language name from code"""
     for name, code in SUPPORTED_LANGUAGES.items():
         if code == lang_code:
             return name
     return "unknown"
 
-# ============================================
-# BOT COMMAND HANDLERS
-# ============================================
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send welcome message when /start is issued"""
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "target_lang" not in context.user_data:
         context.user_data["target_lang"] = "es"
     
     current_lang_name = get_lang_name(context.user_data["target_lang"])
     
     welcome_text = (
-        f"🌍 Welcome to {BOT_NAME}!\n\n"
+        f"🌍 Welcome to TransLinguabot!\n\n"
         "I can translate your messages to different languages.\n\n"
         "📤 **How to use:**\n"
         "1. Send me any text message\n"
         "2. I'll translate it to your selected language\n"
         "3. Use the menu to change languages\n\n"
-        "📁 **Supported languages:**\n"
-        f"{', '.join(SUPPORTED_LANGUAGES.keys()).capitalize()}\n\n"
         f"🔹 **Current target language:** {current_lang_name.capitalize()}\n\n"
         "🔽 **Use the menu below to get started!**"
     )
@@ -121,10 +98,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=get_main_menu()
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send help message"""
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
-        f"🆘 **{BOT_NAME} Help**\n\n"
+        "🆘 **TransLinguabot Help**\n\n"
         "**Commands:**\n"
         "/start - Start the bot\n"
         "/help - Show this help\n"
@@ -133,13 +109,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "**How it works:**\n"
         "1. Send any text message\n"
         "2. The bot translates it to your chosen language\n"
-        "3. Use /lang to change the target language\n\n"
-        "**Pro Tip:** Use the menu buttons for easy navigation!"
+        "3. Use /lang to change the target language"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
-async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show language selection menu"""
+async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_lang = context.user_data.get("target_lang", "es")
     current_name = get_lang_name(current_lang)
     await update.message.reply_text(
@@ -149,25 +123,17 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         reply_markup=get_language_keyboard()
     )
 
-async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show current settings"""
+async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_lang = context.user_data.get("target_lang", "es")
     current_name = get_lang_name(current_lang)
     info_text = (
         f"📊 **Your Settings**\n\n"
         f"🌍 **Target Language:** {current_name.capitalize()}\n"
-        f"📝 **Bot Name:** {BOT_NAME}\n"
-        f"👤 **Username:** @{BOT_USERNAME}\n\n"
         "Send any text to translate it!"
     )
     await update.message.reply_text(info_text, parse_mode="Markdown")
 
-# ============================================
-# MESSAGE HANDLER
-# ============================================
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle incoming text messages and translate them"""
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         target_lang = context.user_data.get("target_lang", "es")
         text = update.message.text
@@ -187,16 +153,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
     except Exception as e:
         logger.error(f"Message handler error: {e}")
-        await update.message.reply_text(
-            "❌ Failed to translate your message. Please try again."
-        )
+        await update.message.reply_text("❌ Failed to translate your message. Please try again.")
 
-# ============================================
-# CALLBACK QUERY HANDLER
-# ============================================
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle button presses"""
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
@@ -260,20 +219,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             reply_markup=get_main_menu()
         )
 
-# ============================================
-# ERROR HANDLER
-# ============================================
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log errors"""
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Update {update} caused error {context.error}")
 
-# ============================================
-# MAIN APPLICATION
-# ============================================
-
-async def main() -> None:
-    """Start the bot with proper webhook handling"""
+async def main():
     try:
         application = Application.builder().token(TOKEN).build()
 
@@ -281,12 +230,7 @@ async def main() -> None:
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("lang", lang_command))
         application.add_handler(CommandHandler("info", info_command))
-
-        application.add_handler(MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            handle_message
-        ))
-
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         application.add_handler(CallbackQueryHandler(button_callback))
         application.add_error_handler(error_handler)
 
@@ -294,7 +238,7 @@ async def main() -> None:
         await application.bot.delete_webhook(drop_pending_updates=True)
         logger.info("✅ Webhook cleared successfully!")
 
-        logger.info(f"🚀 Starting {BOT_NAME} (@{BOT_USERNAME})...")
+        logger.info("🚀 Starting TransLinguabot...")
         logger.info(f"✅ Bot is running on Python {os.sys.version}")
 
         await application.initialize()
@@ -306,7 +250,6 @@ async def main() -> None:
 
     except Conflict as e:
         logger.error(f"❌ Conflict error: {e}")
-        logger.error("⚠️ Another instance of this bot is already running!")
         raise
     except Exception as e:
         logger.error(f"❌ Failed to start bot: {e}")
